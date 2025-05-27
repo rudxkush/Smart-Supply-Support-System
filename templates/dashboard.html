@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>4S - Dashboard</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/prevent_back.js') }}"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Smart Supply Support System</h1>
+            <div class="user-info">
+                <p>Logged in as: <strong>{{ role }}</strong></p>
+                <a href="{{ url_for('logout') }}" class="btn btn-small">Logout</a>
+            </div>
+        </header>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <p class="flash-message">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <div class="dashboard">
+            <div class="sidebar">
+                <nav>
+                    <ul>
+                        <li><a href="{{ url_for('dashboard', role=role, user_id=user_id) }}" class="active">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">dashboard</span> Dashboard
+                        </a></li>
+                        <li><a href="{{ url_for('submit_request', role=role, user_id=user_id) }}">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">add_circle</span> Submit Request
+                        </a></li>
+                        {% if role in ['Warehouse Officer', 'Production Planner'] %}
+                        <li><a href="{{ url_for('add_inventory', role=role, user_id=user_id) }}">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">inventory</span> Manage Inventory
+                        </a></li>
+                        {% endif %}
+                        <li><a href="{{ url_for('reports') }}">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">bar_chart</span> Reports
+                        </a></li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div class="main-content">
+                <div class="card-header">
+                    <h2>Welcome, {{ role }}</h2>
+                    <div class="search-bar">
+                        <input type="text" class="search-input" placeholder="Search requests..." id="searchInput">
+                    </div>
+                </div>
+                
+                {% if role == 'Support Agent' %}
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Vendor Management</h3>
+                    </div>
+                    <p>
+                        <a href="{{ url_for('vendor_login') }}" class="btn">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px;">business</span>
+                            Vendor Portal
+                        </a>
+                        <span class="help-text">For local vendors to update support requests</span>
+                    </p>
+                </div>
+                {% endif %}
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">My Requests</h3>
+                        <span class="status-pill status-pill-submitted">{{ my_requests|length }} Requests</span>
+                    </div>
+                    
+                    {% if my_requests %}
+                        <div class="tabs">
+                            <div class="tab active" data-filter="all">All</div>
+                            <div class="tab" data-filter="submitted">Submitted</div>
+                            <div class="tab" data-filter="in-transit">In Transit</div>
+                            <div class="tab" data-filter="fulfilled">Fulfilled</div>
+                        </div>
+                        
+                        <table class="data-table" id="requestsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>TYPE</th>
+                                    <th>MESSAGE</th>
+                                    <th>STATUS</th>
+                                    <th>SUBMITTED</th>
+                                    <th>DELIVERY</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in my_requests %}
+                                    <tr class="status-{{ req.status.lower().replace(' ', '-') }}" data-status="{{ req.status.lower().replace(' ', '-') }}">
+                                        <td>{{ req.id }}</td>
+                                        <td>{{ req.auto_tag }}</td>
+                                        <td>{{ req.message[:50] }}{% if req.message|length > 50 %}...{% endif %}</td>
+                                        <td>
+                                            <span class="status-pill status-pill-{{ req.status.lower().replace(' ', '-') }}">
+                                                {{ req.status }}
+                                            </span>
+                                        </td>
+                                        <td>{{ req.submitted_time }}</td>
+                                        <td>
+                                            {% if req.fulfilled_time %}
+                                                {{ req.fulfilled_time }}
+                                                {% if req.vendor_name and role == 'Support Agent' %}
+                                                <br><small>By: {{ req.vendor_name }}</small>
+                                                {% endif %}
+                                            {% elif req.estimated_delivery %}
+                                                <span class="delivery-estimate">{{ req.estimated_delivery }}</span>
+                                            {% else %}
+                                                Pending
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <p>You haven't submitted any requests yet.</p>
+                            <a href="{{ url_for('submit_request', role=role, user_id=user_id) }}" class="btn">Create Your First Request</a>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                {% if role == 'Warehouse Officer' and pending_requests %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Pending Stock Requests & Notifications</h3>
+                            {% if notifications_count %}
+                                <span class="notification-badge">{{ notifications_count }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>FROM</th>
+                                    <th>TYPE</th>
+                                    <th>MESSAGE</th>
+                                    <th>STATUS</th>
+                                    <th>DELIVERY</th>
+                                    <th>ACTION</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in pending_requests %}
+                                    <tr class="{% if req.auto_tag == 'Stock Update' %}highlight-row{% endif %}">
+                                        <td>{{ req.id }}</td>
+                                        <td>{{ req.username }}</td>
+                                        <td>{{ req.auto_tag }}</td>
+                                        <td>{{ req.message[:50] }}{% if req.message|length > 50 %}...{% endif %}</td>
+                                        <td>
+                                            <span class="status-pill status-pill-{{ req.status.lower().replace(' ', '-') }}">
+                                                {{ req.status }}
+                                            </span>
+                                        </td>
+                                        <td>{{ req.estimated_delivery or 'Not estimated' }}</td>
+                                        <td>
+                                            {% if req.auto_tag == 'Stock Update' %}
+                                                <form action="{{ url_for('update_request', request_id=req.id, role=role, user_id=user_id) }}" method="POST">
+                                                    <input type="hidden" name="status" value="Acknowledged">
+                                                    <button type="submit" class="btn btn-small">Acknowledge</button>
+                                                </form>
+                                            {% else %}
+                                                <form action="{{ url_for('update_request', request_id=req.id, role=role, user_id=user_id) }}" method="POST" class="inline-form">
+                                                    <select name="status">
+                                                        <option value="In Review">In Review</option>
+                                                        <option value="In Transit">In Transit</option>
+                                                        <option value="Fulfilled">Fulfilled</option>
+                                                        <option value="Forwarded to Production">Forward to Production</option>
+                                                        <option value="Declined">Declined</option>
+                                                    </select>
+                                                    <button type="submit" class="btn btn-small">Update</button>
+                                                </form>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+                
+                {% if role == 'Production Planner' and pending_requests %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Production Requests</h3>
+                            <span class="status-pill status-pill-production">{{ pending_requests|length }} Pending</span>
+                        </div>
+                        
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>FROM</th>
+                                    <th>TYPE</th>
+                                    <th>MESSAGE</th>
+                                    <th>SUBMITTED</th>
+                                    <th>ACTION</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in pending_requests %}
+                                    <tr>
+                                        <td>{{ req.id }}</td>
+                                        <td>{{ req.username }}</td>
+                                        <td>{{ req.auto_tag }}</td>
+                                        <td>{{ req.message[:50] }}{% if req.message|length > 50 %}...{% endif %}</td>
+                                        <td>{{ req.submitted_time }}</td>
+                                        <td>
+                                            <form action="{{ url_for('update_request', request_id=req.id, role=role, user_id=user_id) }}" method="POST" class="inline-form">
+                                                <select name="status">
+                                                    <option value="In Production">Start Production</option>
+                                                    <option value="Production Complete">Complete Production</option>
+                                                    <option value="Declined">Decline Request</option>
+                                                </select>
+                                                <button type="submit" class="btn btn-small">Update</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+                
+                {% if inventory and role in ['Warehouse Officer', 'Production Planner'] %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Inventory Status</h3>
+                            <a href="{{ url_for('add_inventory', role=role, user_id=user_id) }}" class="btn btn-small">
+                                <span class="material-icons" style="vertical-align: middle; margin-right: 4px; font-size: 16px;">add</span>
+                                Add Item
+                            </a>
+                        </div>
+                        
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>PRODUCT</th>
+                                    <th>QUANTITY</th>
+                                    <th>STATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in inventory %}
+                                    <tr>
+                                        <td>{{ item.item_name }}</td>
+                                        <td>{{ item.quantity }}</td>
+                                        <td>
+                                            {% if item.status == 'In Stock' %}
+                                                <span class="status-pill status-pill-fulfilled">{{ item.status }}</span>
+                                            {% elif item.status == 'Low Stock' %}
+                                                <span class="status-pill status-pill-in-transit">{{ item.status }}</span>
+                                            {% else %}
+                                                <span class="status-pill status-pill-declined">{{ item.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Verify login status
+        if (!document.cookie.includes('logged_in=true')) {
+            // If not logged in, redirect to login page
+            window.location.href = '/login';
+        }
+        
+        // Set session storage to indicate authenticated
+        sessionStorage.setItem('authenticated', 'true');
+        
+        // Search functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('searchInput');
+            const requestsTable = document.getElementById('requestsTable');
+            
+            if (searchInput && requestsTable) {
+                searchInput.addEventListener('keyup', function() {
+                    const searchTerm = searchInput.value.toLowerCase();
+                    const rows = requestsTable.querySelectorAll('tbody tr');
+                    
+                    rows.forEach(row => {
+                        const text = row.textContent.toLowerCase();
+                        if (text.includes(searchTerm)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            }
+            
+            // Tab filtering
+            const tabs = document.querySelectorAll('.tab');
+            if (tabs.length > 0) {
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', function() {
+                        // Remove active class from all tabs
+                        tabs.forEach(t => t.classList.remove('active'));
+                        // Add active class to clicked tab
+                        this.classList.add('active');
+                        
+                        const filter = this.getAttribute('data-filter');
+                        const rows = requestsTable.querySelectorAll('tbody tr');
+                        
+                        rows.forEach(row => {
+                            if (filter === 'all') {
+                                row.style.display = '';
+                            } else {
+                                const status = row.getAttribute('data-status');
+                                if (status && status.includes(filter)) {
+                                    row.style.display = '';
+                                } else {
+                                    row.style.display = 'none';
+                                }
+                            }
+                        });
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>

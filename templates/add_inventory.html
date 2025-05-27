@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>4S - Manage Inventory</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Smart Supply Support System</h1>
+            <div class="user-info">
+                <p>Logged in as: <strong>{{ role }}</strong></p>
+                <a href="{{ url_for('logout') }}" class="btn btn-small">Logout</a>
+            </div>
+        </header>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <p class="flash-message">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <div class="dashboard">
+            <div class="sidebar">
+                <nav>
+                    <ul>
+                        <li><a href="{{ url_for('dashboard', role=role, user_id=user_id) }}">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">dashboard</span> Dashboard
+                        </a></li>
+                        <li><a href="{{ url_for('submit_request', role=role, user_id=user_id) }}">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">add_circle</span> Submit Request
+                        </a></li>
+                        <li><a href="{{ url_for('add_inventory', role=role, user_id=user_id) }}" class="active">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">inventory</span> Manage Inventory
+                        </a></li>
+                        <li><a href="{{ url_for('reports') }}">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">bar_chart</span> Reports
+                        </a></li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div class="main-content">
+                <div class="card-header">
+                    <h2>Inventory Management</h2>
+                    <div class="search-bar">
+                        <input type="text" class="search-input" placeholder="Search inventory..." id="searchInput">
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Add New Inventory Item</h3>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('add_inventory', role=role, user_id=user_id) }}" onsubmit="return validateForm(this)">
+                        <div class="form-group">
+                            <label for="item_name">Product Name</label>
+                            <input type="text" id="item_name" name="item_name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="quantity">Quantity</label>
+                            <input type="number" id="quantity" name="quantity" min="0" value="0" required>
+                            <p class="help-text">Enter the current stock quantity</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="status">Status</label>
+                            <select id="status" name="status" required>
+                                <option value="In Stock">In Stock</option>
+                                <option value="Low Stock">Low Stock</option>
+                                <option value="Out of Stock" selected>Out of Stock</option>
+                            </select>
+                            <p class="help-text">Status will be automatically updated based on quantity</p>
+                        </div>
+                        
+                        <button type="submit" class="btn">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">add</span>
+                            Add Inventory Item
+                        </button>
+                    </form>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Current Inventory</h3>
+                        <span class="status-pill status-pill-submitted">{{ inventory|length }} Items</span>
+                    </div>
+                    
+                    {% if inventory %}
+                        <div class="tabs">
+                            <div class="tab active" data-filter="all">All</div>
+                            <div class="tab" data-filter="in-stock">In Stock</div>
+                            <div class="tab" data-filter="low-stock">Low Stock</div>
+                            <div class="tab" data-filter="out-of-stock">Out of Stock</div>
+                        </div>
+                        
+                        <table class="data-table" id="inventoryTable">
+                            <thead>
+                                <tr>
+                                    <th>PRODUCT</th>
+                                    <th>QUANTITY</th>
+                                    <th>STATUS</th>
+                                    <th>ACTION</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in inventory %}
+                                    <tr data-status="{{ item.status.lower().replace(' ', '-') }}">
+                                        <td>{{ item.item_name }}</td>
+                                        <td>{{ item.quantity }}</td>
+                                        <td>
+                                            {% if item.status == 'In Stock' %}
+                                                <span class="status-pill status-pill-fulfilled">{{ item.status }}</span>
+                                            {% elif item.status == 'Low Stock' %}
+                                                <span class="status-pill status-pill-in-transit">{{ item.status }}</span>
+                                            {% else %}
+                                                <span class="status-pill status-pill-declined">{{ item.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <form action="{{ url_for('update_inventory', item_id=item.id, role=role, user_id=user_id) }}" method="POST" class="inline-form">
+                                                <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="small-input">
+                                                <button type="submit" class="btn btn-small">Update</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <p>No inventory items found. Add your first inventory item using the form above.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update status based on quantity
+            const quantityInput = document.getElementById('quantity');
+            const statusSelect = document.getElementById('status');
+            
+            if (quantityInput && statusSelect) {
+                quantityInput.addEventListener('change', function() {
+                    const quantity = parseInt(this.value);
+                    if (quantity > 10) {
+                        statusSelect.value = 'In Stock';
+                    } else if (quantity > 0) {
+                        statusSelect.value = 'Low Stock';
+                    } else {
+                        statusSelect.value = 'Out of Stock';
+                    }
+                });
+            }
+            
+            // Search functionality for inventory table
+            const searchInput = document.getElementById('searchInput');
+            const inventoryTable = document.getElementById('inventoryTable');
+            
+            if (searchInput && inventoryTable) {
+                searchInput.addEventListener('keyup', function() {
+                    const searchTerm = searchInput.value.toLowerCase();
+                    const rows = inventoryTable.querySelectorAll('tbody tr');
+                    
+                    rows.forEach(row => {
+                        const text = row.textContent.toLowerCase();
+                        if (text.includes(searchTerm)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            }
+            
+            // Tab filtering for inventory table
+            const tabs = document.querySelectorAll('.tab');
+            if (tabs.length > 0 && inventoryTable) {
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', function() {
+                        // Remove active class from all tabs
+                        tabs.forEach(t => t.classList.remove('active'));
+                        // Add active class to clicked tab
+                        this.classList.add('active');
+                        
+                        const filter = this.getAttribute('data-filter');
+                        const rows = inventoryTable.querySelectorAll('tbody tr');
+                        
+                        rows.forEach(row => {
+                            if (filter === 'all') {
+                                row.style.display = '';
+                            } else {
+                                const status = row.getAttribute('data-status');
+                                if (status && status.includes(filter)) {
+                                    row.style.display = '';
+                                } else {
+                                    row.style.display = 'none';
+                                }
+                            }
+                        });
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>

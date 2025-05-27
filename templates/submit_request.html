@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>4S - Submit Request</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Smart Supply Support System</h1>
+            <div class="user-info">
+                <p>Logged in as: <strong>{{ role }}</strong></p>
+                <a href="{{ url_for('logout') }}" class="btn btn-small">Logout</a>
+            </div>
+        </header>
+        
+        <div class="dashboard">
+            <div class="sidebar">
+                <nav>
+                    <ul>
+                        <li><a href="{{ url_for('dashboard', role=role, user_id=user_id) }}">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">dashboard</span> Dashboard
+                        </a></li>
+                        <li><a href="{{ url_for('submit_request', role=role, user_id=user_id) }}" class="active">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">add_circle</span> Submit Request
+                        </a></li>
+                        {% if role in ['Warehouse Officer', 'Production Planner'] %}
+                        <li><a href="{{ url_for('add_inventory', role=role, user_id=user_id) }}">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">inventory</span> Manage Inventory
+                        </a></li>
+                        {% endif %}
+                        <li><a href="{{ url_for('reports') }}">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">bar_chart</span> Reports
+                        </a></li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div class="main-content">
+                <div class="card-header">
+                    <h2>Submit a New Request</h2>
+                </div>
+                
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        <div class="flash-messages">
+                            {% for message in messages %}
+                                <p class="flash-message">{{ message }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+                
+                <div class="card">
+                    <form method="POST" action="{{ url_for('submit_request', role=role, user_id=user_id) }}">
+                        <div class="form-group">
+                            <label for="message">Request Details</label>
+                            <textarea id="message" name="message" rows="6" required placeholder="Describe your request..."></textarea>
+                        </div>
+                        
+                        {% if role == 'Sales Executive' %}
+                        <div class="form-group">
+                            <label for="product">Select Product</label>
+                            <select id="product" name="product">
+                                <option value="" selected>-- Select a product --</option>
+                                {% for item in inventory_items %}
+                                <option value="{{ item.item_name }}">{{ item.item_name }} ({{ item.status }}: {{ item.quantity }} units)</option>
+                                {% endfor %}
+                                <option value="new_product">-- Request New Product --</option>
+                            </select>
+                            <p class="help-text">Including a product name will check inventory automatically</p>
+                        </div>
+                        
+                        <div id="new-product-fields" style="display: none;">
+                            <div class="form-group">
+                                <label for="new_product_name">New Product Name</label>
+                                <input type="text" id="new_product_name" name="new_product_name" placeholder="Enter new product name">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="new_product_quantity">Quantity Needed</label>
+                                <input type="number" id="new_product_quantity" name="new_product_quantity" min="1" value="1">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="main_quantity">Quantity</label>
+                            <input type="number" id="main_quantity" name="quantity" min="1" value="1" class="quantity-input">
+                            <p class="help-text">Specify how many units you need</p>
+                        </div>
+                        
+                        <div class="form-group" id="inventory-status">
+                            <div id="product-availability"></div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="form-group">
+                            <label for="tag">Request Tag</label>
+                            <select id="tag" name="tag" required>
+                                <option value="" disabled selected>Select a tag for your request</option>
+                                {% if role == 'Sales Executive' %}
+                                    <option value="Urgent Delivery">Urgent Delivery</option>
+                                    <option value="Stock Check">Stock Check</option>
+                                    <option value="Sales Request">Sales Request</option>
+                                {% elif role == 'Warehouse Officer' %}
+                                    <option value="Stock Confirmation">Stock Confirmation</option>
+                                    <option value="Shipment">Shipment</option>
+                                    <option value="Warehouse Request">Warehouse Request</option>
+                                {% elif role == 'Production Planner' %}
+                                    <option value="Delay Report">Delay Report</option>
+                                    <option value="Production Schedule">Production Schedule</option>
+                                    <option value="Production Request">Production Request</option>
+                                {% elif role == 'Support Agent' %}
+                                    <option value="Customer Complaint">Customer Complaint</option>
+                                    <option value="Service Request">Service Request</option>
+                                    <option value="Support Request">Support Request</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-help">
+                            <h4>Request Tips for {{ role }}</h4>
+                            <p>Select the appropriate tag from the dropdown menu to categorize your request.</p>
+                            
+                            {% if role == 'Sales Executive' %}
+                                <p>For product requests, select a product from the dropdown or request a new one.</p>
+                            {% elif role == 'Warehouse Officer' %}
+                                <p>Use Stock Confirmation for inventory checks and Shipment for delivery updates.</p>
+                            {% elif role == 'Production Planner' %}
+                                <p>Report production delays or schedule changes using the appropriate tags.</p>
+                            {% elif role == 'Support Agent' %}
+                                <p>Customer complaints will be prioritized and can be forwarded to vendors.</p>
+                            {% endif %}
+                        </div>
+                        
+                        <button type="submit" class="btn">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">send</span>
+                            Submit Request
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Show/hide new product fields based on selection
+        document.addEventListener('DOMContentLoaded', function() {
+            const productSelect = document.getElementById('product');
+            const newProductFields = document.getElementById('new-product-fields');
+            const mainQuantity = document.getElementById('main_quantity');
+            const productAvailability = document.getElementById('product-availability');
+            
+            if (productSelect) {
+                productSelect.addEventListener('change', function() {
+                    if (this.value === 'new_product') {
+                        newProductFields.style.display = 'block';
+                        mainQuantity.parentElement.style.display = 'none';
+                        productAvailability.innerHTML = '<div class="alert alert-info">New product will be added to inventory and forwarded to production.</div>';
+                    } else if (this.value !== '') {
+                        newProductFields.style.display = 'none';
+                        mainQuantity.parentElement.style.display = 'block';
+                        
+                        // Extract product status and quantity from the selected option text
+                        const optionText = productSelect.options[productSelect.selectedIndex].text;
+                        if (optionText.includes('In Stock')) {
+                            productAvailability.innerHTML = '<div class="alert alert-success">Product is in stock and available for immediate delivery.</div>';
+                        } else if (optionText.includes('Low Stock')) {
+                            productAvailability.innerHTML = '<div class="alert alert-warning">Product is in low stock. Order may be partially fulfilled.</div>';
+                        } else if (optionText.includes('Out of Stock')) {
+                            productAvailability.innerHTML = '<div class="alert alert-danger">Product is out of stock. Request will be forwarded to production.</div>';
+                        }
+                    } else {
+                        newProductFields.style.display = 'none';
+                        mainQuantity.parentElement.style.display = 'block';
+                        productAvailability.innerHTML = '';
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

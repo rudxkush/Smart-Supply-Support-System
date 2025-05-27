@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>4S - Vendor Update</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="vendor-header">
+                <h2>4S Vendor Portal</h2>
+                <p>Update Support Request #{{ request_details.id }}</p>
+            </div>
+            
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for message in messages %}
+                            <p class="flash-message">{{ message }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            
+            {% if request_details %}
+                <div class="request-details">
+                    <div class="tabs">
+                        <div class="tab active">Request Details</div>
+                        <div class="tab">Update Form</div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Support Request Information</h3>
+                            <span class="status-pill status-pill-{{ request_details.status.lower().replace(' ', '-') }}">
+                                {{ request_details.status }}
+                            </span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Request Type</label>
+                            <p>{{ request_details.auto_tag }}</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Submitted by</label>
+                            <p>{{ request_details.role }}</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Request Details</label>
+                            <p style="white-space: pre-line;">{{ request_details.message }}</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Submitted on</label>
+                            <p>{{ request_details.submitted_time }}</p>
+                        </div>
+                        
+                        {% if request_details.vendor_name %}
+                        <div class="alert alert-info">
+                            <h4>Previous Update</h4>
+                            <p><strong>Updated by:</strong> {{ request_details.vendor_name }}</p>
+                            <p><strong>Solution:</strong> {{ request_details.solution }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="vendor-form">
+                    <h3>Update Request</h3>
+                    <form method="POST" action="{{ url_for('vendor_update_submit', request_id=request_details.id) }}">
+                        <div class="form-group">
+                            <label for="vendor_name">Vendor Name</label>
+                            <input type="text" id="vendor_name" name="vendor_name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="solution">Solution Details</label>
+                            <textarea id="solution" name="solution" rows="6" required placeholder="Describe how you resolved the issue..."></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn">Submit Update</button>
+                    </form>
+                </div>
+            {% else %}
+                <div class="alert alert-danger">
+                    <p>Request not found or not available for update.</p>
+                </div>
+                <a href="{{ url_for('vendor_login') }}" class="btn">Back to Vendor Login</a>
+            {% endif %}
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="{{ url_for('vendor_login') }}">Return to Vendor Login</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Simple tab functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabs = document.querySelectorAll('.tab');
+            const requestDetails = document.querySelector('.request-details');
+            const vendorForm = document.querySelector('.vendor-form');
+            
+            tabs.forEach((tab, index) => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from all tabs
+                    tabs.forEach(t => t.classList.remove('active'));
+                    // Add active class to clicked tab
+                    this.classList.add('active');
+                    
+                    // Show/hide content based on tab
+                    if (index === 0) {
+                        requestDetails.style.display = 'block';
+                        vendorForm.style.display = 'none';
+                    } else {
+                        requestDetails.style.display = 'none';
+                        vendorForm.style.display = 'block';
+                    }
+                });
+            });
+            
+            // Initialize - show first tab content
+            requestDetails.style.display = 'block';
+            vendorForm.style.display = 'none';
+        });
+    </script>
+</body>
+</html>

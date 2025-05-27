@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>4S - Analytics & Reports</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Smart Supply Support System</h1>
+            <div class="user-info">
+                <a href="{{ url_for('logout') }}" class="btn btn-small">Logout</a>
+            </div>
+        </header>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <p class="flash-message">{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <div class="dashboard">
+            <div class="sidebar">
+                <nav>
+                    <ul>
+                        <li><a href="javascript:history.back()">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">arrow_back</span> Back to Dashboard
+                        </a></li>
+                        <li><a href="{{ url_for('reports') }}" class="active">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">bar_chart</span> Reports
+                        </a></li>
+                        <li><a href="{{ url_for('export_data') }}" target="_blank">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px; font-size: 18px;">download</span> Export Data (JSON)
+                        </a></li>
+                    </ul>
+                </nav>
+            </div>
+            
+            <div class="main-content">
+                <div class="card-header">
+                    <h2>Analytics & Reports</h2>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Request Distribution by Type</h3>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <canvas id="requestTypeChart"></canvas>
+                    </div>
+                    
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>REQUEST TYPE</th>
+                                <th>COUNT</th>
+                                <th>PERCENTAGE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set total = namespace(value=0) %}
+                            {% for type in request_types %}
+                                {% set total.value = total.value + type.count %}
+                            {% endfor %}
+                            
+                            {% for type in request_types %}
+                                <tr>
+                                    <td>{{ type.auto_tag }}</td>
+                                    <td>{{ type.count }}</td>
+                                    <td>{{ "%.1f"|format(type.count / total.value * 100) }}%</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Average Fulfillment Time</h3>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <canvas id="fulfillmentTimeChart"></canvas>
+                    </div>
+                    
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>REQUEST TYPE</th>
+                                <th>AVERAGE HOURS</th>
+                                <th>AVERAGE DAYS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in avg_fulfillment %}
+                                <tr>
+                                    <td>{{ item.auto_tag }}</td>
+                                    <td>{{ "%.2f"|format(item.avg_hours) }}</td>
+                                    <td>{{ "%.2f"|format(item.avg_hours / 24) }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">SLA Breaches (> 2 days)</h3>
+                        <span class="status-pill status-pill-declined">{{ sla_breaches|length }} Breaches</span>
+                    </div>
+                    
+                    {% if sla_breaches %}
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>ROLE</th>
+                                    <th>TYPE</th>
+                                    <th>MESSAGE</th>
+                                    <th>DAYS TO FULFILL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for breach in sla_breaches %}
+                                    <tr>
+                                        <td>{{ breach.id }}</td>
+                                        <td>{{ breach.role }}</td>
+                                        <td>{{ breach.auto_tag }}</td>
+                                        <td>{{ breach.message[:50] }}{% if breach.message|length > 50 %}...{% endif %}</td>
+                                        <td>
+                                            <span class="status-pill status-pill-declined">{{ "%.2f"|format(breach.days) }}</span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <div class="alert alert-success">
+                            <p>No SLA breaches detected. All requests are being fulfilled within the 2-day target.</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Data Export Options</h3>
+                    </div>
+                    
+                    <div style="padding: 20px;">
+                        <a href="{{ url_for('export_data') }}" target="_blank" class="btn">
+                            <span class="material-icons" style="vertical-align: middle; margin-right: 8px;">download</span>
+                            Export All Data (JSON)
+                        </a>
+                        
+                        <p class="help-text" style="margin-top: 16px;">
+                            Export all request and inventory data in JSON format for further analysis or reporting.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Request Type Chart
+        const typeCtx = document.getElementById('requestTypeChart').getContext('2d');
+        const typeLabels = [{% for type in request_types %}'{{ type.auto_tag }}',{% endfor %}];
+        const typeCounts = [{% for type in request_types %}{{ type.count }},{% endfor %}];
+        
+        new Chart(typeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: typeLabels,
+                datasets: [{
+                    data: typeCounts,
+                    backgroundColor: [
+                        '#4285f4', '#ea4335', '#fbbc04', '#34a853', '#9334e6',
+                        '#fa7b17', '#00c4b4', '#1967d2', '#d93025', '#188038'
+                    ],
+                    borderWidth: 1,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            font: {
+                                family: 'Roboto',
+                                size: 12
+                            }
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Request Distribution',
+                        font: {
+                            family: 'Roboto',
+                            size: 16,
+                            weight: 'normal'
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Fulfillment Time Chart
+        const timeCtx = document.getElementById('fulfillmentTimeChart').getContext('2d');
+        const timeLabels = [{% for item in avg_fulfillment %}'{{ item.auto_tag }}',{% endfor %}];
+        const timeData = [{% for item in avg_fulfillment %}{{ item.avg_hours }},{% endfor %}];
+        
+        new Chart(timeCtx, {
+            type: 'bar',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'Hours to Fulfill',
+                    data: timeData,
+                    backgroundColor: '#4285f4',
+                    borderColor: '#1967d2',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Hours',
+                            font: {
+                                family: 'Roboto',
+                                size: 14
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                family: 'Roboto',
+                                size: 12
+                            }
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            font: {
+                                family: 'Roboto',
+                                size: 12
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            font: {
+                                family: 'Roboto',
+                                size: 12
+                            }
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Average Fulfillment Time by Request Type',
+                        font: {
+                            family: 'Roboto',
+                            size: 16,
+                            weight: 'normal'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
