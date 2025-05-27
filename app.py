@@ -741,12 +741,12 @@ def export_data():
         'inventory': inventory_list
     })
 
+# Ensure database directory exists
+os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
+
+# Initialize the database
+init_db()
+
 if __name__ == '__main__':
-    # Ensure database directory exists
-    os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
-    
-    # Initialize the database
-    init_db()
-    
     # Use port 5001 instead of default 5000 to avoid conflict with AirPlay
     app.run(debug=True, port=5001)
