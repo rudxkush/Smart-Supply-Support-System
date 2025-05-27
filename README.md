@@ -5,7 +5,7 @@ A web-based application for managing supply chain operations, inventory, and sup
 ## Project Structure
 
 ```
-/4S_Project/
+4S_Project
 |-- database/           # SQLite database storage
 |-- static/             # Static assets (CSS, JS, images)
 |-- templates/          # HTML templates
