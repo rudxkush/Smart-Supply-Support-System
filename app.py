@@ -748,4 +748,5 @@ if __name__ == '__main__':
     # Initialize the database
     init_db()
     
-    app.run(debug=True)
+    # Use port 5001 instead of default 5000 to avoid conflict with AirPlay
+    app.run(debug=True, port=5001)
