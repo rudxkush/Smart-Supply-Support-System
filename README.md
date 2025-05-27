@@ -48,7 +48,7 @@ A web-based application for managing supply chain operations, inventory, and sup
 ./run.sh --reset-db
 
 # Specify a custom port
-./run.sh --port 5000
+./run.sh --port 5001
 
 # Run without debug mode
 ./run.sh --no-debug
@@ -67,12 +67,19 @@ source venv/bin/activate
 python app.py
 ```
 
+The application will be accessible at http://127.0.0.1:5001
+```
+
 ## Default Users
 
 - Sales Executive: username `sales`, password `sales123`
 - Warehouse Officer: username `warehouse`, password `warehouse123`
 - Production Planner: username `production`, password `production123`
 - Support Agent: username `support`, password `support123`
+
+## Note for macOS Users
+
+The application uses port 5001 instead of the default Flask port 5000 to avoid conflicts with AirPlay Receiver service on macOS.
 
 ## Project Cleanup
 
